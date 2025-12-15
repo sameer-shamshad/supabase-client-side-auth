@@ -1,12 +1,18 @@
 'use client';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useMachine } from '@xstate/react';
 import { usePathname } from 'next/navigation';
+import themeMachine from '@/machines/ThemeMachine';
 
 export default function Navigation() {
   const pathname = usePathname();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [state, send] = useMachine(themeMachine);
+
+  useEffect(() => {
+    send({ type: 'INIT' });
+  }, [send]);
 
   return (
     <nav className="w-full flex items-center bg-primary text-secondary py-4 px-8">
@@ -36,13 +42,17 @@ export default function Navigation() {
       <button 
         type="button"
         className='material-symbols-outlined ml-5 md:ml-10'
-        onClick={() => setIsDarkMode(!isDarkMode)}
-      >light_mode</button>
+        onClick={() => send({ type: 'TOGGLE' })}
+        aria-label={`Switch to ${state.context.isDarkMode ? 'light' : 'dark'} mode`}
+      >
+        {state.context.isDarkMode ? 'light_mode' : 'dark_mode'}
+      </button>
 
       <button 
         type="button" 
         className='material-symbols-outlined ml-5 md:ml-10' 
         onClick={() => setIsMenuOpen(!isMenuOpen)}
+        aria-label="Toggle menu"
       >
         menu
       </button>

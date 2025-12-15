@@ -1,6 +1,6 @@
 import "./globals.css";
+import "@/app/globalicons.css";
 import App from "@/app/App";
-import "@/app/globalIcons.css";
 import type { Metadata } from "next";
 import 'bootstrap-icons/font/bootstrap-icons.css';
 import { Plus_Jakarta_Sans } from "next/font/google";

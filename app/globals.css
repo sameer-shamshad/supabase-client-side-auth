@@ -31,6 +31,11 @@ body {
 }
 
 html.dark-mode {
+  --bg-color: #1a1a1a;
+  --primary-text-color: #fdfdfd;
+  --secondary-text-color: #cccccc;
+  --border-color: rgba(255, 255, 255, .2);
+  
   --color-background: var(--bg-color);
   --color-primary-foreground: var(--primary-text-color);
   --color-secondary-foreground: var(--secondary-text-color);
