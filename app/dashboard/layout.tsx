@@ -1,10 +1,11 @@
 'use client';
 import React from "react";
 import { useRouter } from "next/navigation";
-import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import withAuth from "@/components/withAuth";
 import { logoutThunk } from "@/store/features/AuthReducer";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const dispatch = useAppDispatch();
   const { user, isLoading } = useAppSelector((state) => state.auth);
@@ -48,3 +49,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     </div>
   );
 }
+
+// Protect the dashboard layout with authentication HOC
+export default withAuth(DashboardLayoutContent);

@@ -127,8 +127,7 @@ export const logoutThunk = createAsyncThunk<
   void,
   void,
   { state: RootState; dispatch: AppDispatch; rejectValue: string }
->(
-  'auth/logout', async () => {
+>('auth/logout', async () => {
     try {
       await logout();
     } catch (error) { // Continue with logout even if server logout fails

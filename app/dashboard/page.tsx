@@ -1,32 +1,8 @@
 "use client";
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { useAppDispatch, useAppSelector } from "@/store/hooks";
-import { logoutThunk, fetchProfileFromSupabase } from "@/store/features/AuthReducer";
+import { useAppSelector } from "@/store/hooks";
 
 export default function DashboardPage() {
-  const router = useRouter();
-  const dispatch = useAppDispatch();
-  const { user, isLoading } = useAppSelector((state) => state.auth);
-
-  useEffect(() => {
-    // If no user in Redux after initialization, try to fetch it
-    // initializeAuth (called in App.tsx) already checks authentication
-    if (!user && !isLoading) {
-      dispatch(fetchProfileFromSupabase()).catch(() => {
-        // If fetch fails (user not authenticated), redirect to login
-        router.push("/login");
-      });
-    }
-  }, [user, isLoading, dispatch, router]);
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="text-lg text-primary-foreground">Loading...</div>
-      </div>
-    );
-  }
+  const { user } = useAppSelector((state) => state.auth);
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh]">
