@@ -20,30 +20,25 @@ export default function DashboardPage() {
     }
   }, [user, isLoading, dispatch, router]);
 
-  const handleLogout = async () => {
-    await dispatch(logoutThunk());
-    router.push("/login");
-  };
-
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-lg text-primary-foreground">Loading...</div>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen p-8">
-      <h1 className="text-3xl font-bold text-primary-foreground mb-4">
+    <div className="flex flex-col items-center justify-center min-h-[60vh]">
+      <h2 className="text-2xl font-bold text-primary-foreground mb-6">
         Welcome to Dashboard!
-      </h1>
+      </h2>
       {user && (
         <div className="bg-background border border-border rounded-lg p-6 max-w-md w-full">
-          <h2 className="text-xl font-semibold text-primary-foreground mb-4">
+          <h3 className="text-xl font-semibold text-primary-foreground mb-4">
             User Information
-          </h2>
-          <div className="space-y-2 text-sm text-secondary-foreground mb-6">
+          </h3>
+          <div className="space-y-2 text-sm text-secondary-foreground">
             <p>
               <strong>Username:</strong> {user.username}
             </p>
@@ -54,13 +49,6 @@ export default function DashboardPage() {
               <strong>User ID:</strong> {user.id}
             </p>
           </div>
-          <button
-            onClick={handleLogout}
-            disabled={isLoading}
-            className="w-full bg-primary text-secondary px-4 py-2 font-semibold hover:opacity-90 cursor-pointer rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {isLoading ? "Logging out..." : "Logout"}
-          </button>
         </div>
       )}
     </div>

@@ -91,7 +91,7 @@ export const resendConfirmationEmail = async (email: string) => {
   
   const redirectUrl = `${window.location.origin}/auth/callback`;
   
-  const { data, error } = await supabase.auth.resend({
+  const { error } = await supabase.auth.resend({
     type: 'signup',
     email: email,
     options: {
@@ -104,7 +104,6 @@ export const resendConfirmationEmail = async (email: string) => {
     throw new Error(error.message || 'Failed to resend confirmation email');
   }
 
-  console.log('Confirmation email resent successfully:', data);
   return { success: true };
 };
 

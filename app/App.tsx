@@ -2,7 +2,6 @@
 import { store } from '@/store/store';
 import { Provider } from 'react-redux';
 import React, { useEffect } from 'react'
-import Navigation from '@/components/Navigation';
 import { useAppDispatch } from '@/store/hooks';
 import { initializeAuth } from '@/store/features/AuthReducer';
 
@@ -18,7 +17,6 @@ const AppContent = ({ children }: { children: React.ReactNode }) => {
 
   return (
     <section className='min-h-screen bg-background border'>
-      <Navigation />
       {children}
     </section>
   );
