@@ -1,5 +1,4 @@
 'use client';
-
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useMachine } from '@xstate/react';
@@ -7,10 +6,13 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import loginMachine from '@/machines/LoginMachine';
 import SSOButtons from '@/components/SSOButtons';
 import { resendConfirmationEmail } from '@/services/auth.service';
+import { useAppDispatch } from '@/store/hooks';
+import { fetchProfileFromSupabase } from '@/store/features/AuthReducer';
 
 export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const dispatch = useAppDispatch();
   const [state, send] = useMachine(loginMachine);
   const [isResendingEmail, setIsResendingEmail] = useState(false);
   const [resendSuccess, setResendSuccess] = useState(false);
@@ -25,14 +27,16 @@ export default function LoginPage() {
     }
   }, [searchParams, send]);
 
-  // Redirect to dashboard on successful email/password login
+  // Redirect to dashboard on successful email/password login and fetch profile
   // Note: SSOButtons has its own machine instance and handles SSO redirects separately
   useEffect(() => {
     if (state.matches('success') && state.context.authResponse) {
-      // Redirect immediately when success state is reached
-      router.push('/dashboard');
+      // Fetch profile from Supabase after successful login
+      dispatch(fetchProfileFromSupabase()).then(() => {
+        router.push('/dashboard'); // Redirect after profile is fetched
+      });
     }
-  }, [state, router]);
+  }, [state, router, dispatch]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,14 +72,15 @@ export default function LoginPage() {
 
   // Check if error is about email confirmation
   const isEmailConfirmationError = state.context.error?.toLowerCase().includes('confirm your email') || 
-                                    state.context.error?.toLowerCase().includes('email not confirmed') ||
-                                    state.context.error?.toLowerCase().includes('email_not_confirmed');
+    state.context.error?.toLowerCase().includes('email not confirmed') ||
+    state.context.error?.toLowerCase().includes('email_not_confirmed');
 
 
   const isSubmitting = state.matches('submitting') || 
     state.matches('signingInWithGoogle') || 
     state.matches('signingInWithGithub') || 
     state.matches('signingInWithFacebook');
+    
   const isSuccess = state.matches('success');
 
   return (

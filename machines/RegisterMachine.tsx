@@ -1,5 +1,5 @@
 import { assign, fromPromise, setup } from "xstate";
-import { registerWithEmailAndPassword } from "@/services/auth.service";
+import { registerWithEmailAndPassword, resendConfirmationEmail } from "@/services/auth.service";
 
 const registerMachine = setup({
     types: {
@@ -10,15 +10,24 @@ const registerMachine = setup({
             confirmPassword: string;
             error: string | null;
             authResponse: { accessToken: string } | null;
+            isResendingEmail: boolean;
+            resendSuccess: boolean;
+            resendError: string | null;
         },
         events: {} as
             | { type: 'CHANGE_FIELD'; field: 'username' | 'email' | 'password' | 'confirmPassword'; value: string }
             | { type: 'SUBMIT' }
+            | { type: 'RESEND_EMAIL' }
+            | { type: 'CLEAR_RESEND_SUCCESS' }
             | { type: 'RESET' }
     },
     actors: {
         registerWithEmailAndPassword: fromPromise(async ({ input: { username, email, password } }: { input: { username: string; email: string; password: string } }) => {
             const response = await registerWithEmailAndPassword(username, email, password);
+            return response;
+        }),
+        resendConfirmationEmail: fromPromise(async ({ input: { email } }: { input: { email: string } }) => {
+            const response = await resendConfirmationEmail(email);
             return response;
         }),
     },
@@ -47,6 +56,9 @@ const registerMachine = setup({
             confirmPassword: '',
             error: null,
             authResponse: null,
+            isResendingEmail: false,
+            resendSuccess: false,
+            resendError: null,
         })),
         setValidationError: assign(({ context }) => {
             const username = context.username.trim();
@@ -84,6 +96,37 @@ const registerMachine = setup({
             const output = (event as unknown as { output: { accessToken: string } }).output;
             return { ...context, authResponse: output };
         }),
+        clearResendState: assign(({ context }) => ({
+            ...context,
+            resendSuccess: false,
+            resendError: null,
+        })),
+        setResendSuccess: assign(({ context }) => ({
+            ...context,
+            isResendingEmail: false,
+            resendSuccess: true,
+            resendError: null,
+        })),
+        setResendError: assign(({ context, event }) => {
+            const error = (event as unknown as { error: Error | unknown }).error;
+            const errorMessage = error instanceof Error ? error.message : 'Failed to resend confirmation email';
+            return {
+                ...context,
+                isResendingEmail: false,
+                resendSuccess: false,
+                resendError: errorMessage,
+            };
+        }),
+        startResending: assign(({ context }) => ({
+            ...context,
+            isResendingEmail: true,
+            resendSuccess: false,
+            resendError: null,
+        })),
+        clearResendSuccess: assign(({ context }) => ({
+            ...context,
+            resendSuccess: false,
+        })),
     },
     guards: {
         isValidForm: ({ context }) => {
@@ -110,6 +153,9 @@ const registerMachine = setup({
         confirmPassword: '',
         error: null,
         authResponse: null,
+        isResendingEmail: false,
+        resendSuccess: false,
+        resendError: null,
     },
     states: {
         idle: {
@@ -126,6 +172,12 @@ const registerMachine = setup({
                         target: 'idle',
                     },
                 ],
+                RESEND_EMAIL: {
+                    guard: ({ context }) => context.email.trim().length > 0,
+                    target: 'resendingEmail',
+                    actions: 'startResending',
+                },
+                CLEAR_RESEND_SUCCESS: { actions: 'clearResendSuccess' },
             },
         },
         submitting: {
@@ -147,8 +199,30 @@ const registerMachine = setup({
             },
         },
         success: {
+            on: {
+                RESEND_EMAIL: {
+                    guard: ({ context }) => context.email.trim().length > 0,
+                    target: 'resendingEmail',
+                    actions: 'startResending',
+                },
+                CLEAR_RESEND_SUCCESS: { actions: 'clearResendSuccess' },
+            },
             after: {
                 1000: { target: 'idle', actions: 'clearForm' },
+            },
+        },
+        resendingEmail: {
+            invoke: {
+                src: 'resendConfirmationEmail',
+                input: ({ context }) => ({ email: context.email.trim() }),
+                onDone: {
+                    target: 'idle',
+                    actions: 'setResendSuccess',
+                },
+                onError: {
+                    target: 'idle',
+                    actions: 'setResendError',
+                },
             },
         },
     },

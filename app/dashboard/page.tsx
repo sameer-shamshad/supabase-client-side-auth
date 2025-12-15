@@ -1,46 +1,43 @@
-'use client';
-
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
-import type { User } from '@supabase/supabase-js';
+"use client";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import { logoutThunk, fetchProfileFromSupabase } from "@/store/features/AuthReducer";
 
 export default function DashboardPage() {
   const router = useRouter();
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const dispatch = useAppDispatch();
+  const { user, isLoading } = useAppSelector((state) => state.auth);
 
   useEffect(() => {
-    const checkUser = async () => {
+    const checkAuth = async () => {
       const supabase = createClient();
-      const { data: { user }, error } = await supabase.auth.getUser();
+      const {
+        data: { user: authUser },
+        error,
+      } = await supabase.auth.getUser();
 
-      if (error || !user) {
-        console.error('Authentication error:', error);
-        router.push('/login');
+      if (error || !authUser) {
+        router.push("/login");
         return;
       }
 
-      // Log user details to console
-      console.log('Logged in user details:', {
-        id: user.id,
-        email: user.email,
-        emailVerified: user.email_confirmed_at ? true : false,
-        createdAt: user.created_at,
-        lastSignIn: user.last_sign_in_at,
-        metadata: user.user_metadata,
-        appMetadata: user.app_metadata,
-        fullUserObject: user,
-      });
-
-      setUser(user);
-      setLoading(false);
+      // If no user in Redux, fetch it
+      if (!user) {
+        dispatch(fetchProfileFromSupabase());
+      }
     };
 
-    checkUser();
-  }, [router]);
+    checkAuth();
+  }, [router, dispatch, user]);
 
-  if (loading) {
+  const handleLogout = async () => {
+    await dispatch(logoutThunk());
+    router.push("/login");
+  };
+
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-lg text-primary-foreground">Loading...</div>
@@ -58,13 +55,26 @@ export default function DashboardPage() {
           <h2 className="text-xl font-semibold text-primary-foreground mb-4">
             User Information
           </h2>
-          <div className="space-y-2 text-sm text-secondary-foreground">
-            <p><strong>Email:</strong> {user.email}</p>
-            <p><strong>User ID:</strong> {user.id}</p>
+          <div className="space-y-2 text-sm text-secondary-foreground mb-6">
+            <p>
+              <strong>Username:</strong> {user.username}
+            </p>
+            <p>
+              <strong>Email:</strong> {user.email}
+            </p>
+            <p>
+              <strong>User ID:</strong> {user.id}
+            </p>
           </div>
+          <button
+            onClick={handleLogout}
+            disabled={isLoading}
+            className="w-full bg-primary text-secondary px-4 py-2 font-semibold hover:opacity-90 cursor-pointer rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isLoading ? "Logging out..." : "Logout"}
+          </button>
         </div>
       )}
     </div>
   );
 }
-

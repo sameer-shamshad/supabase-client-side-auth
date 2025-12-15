@@ -22,9 +22,7 @@ async function createOrUpdateUserProfile(userId: string, email: string, username
   }
 
   // If profile already exists, return it without updating
-  if (existingProfile) {
-    return existingProfile;
-  }
+  if (existingProfile) return existingProfile;
 
   // Profile doesn't exist, create it
   const profileData = {
@@ -93,42 +91,17 @@ export const registerWithEmailAndPassword = async (username: string, email: stri
     }
   });
 
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  console.log('Registration response:', {
-    user: data.user ? { id: data.user.id, email: data.user.email, emailConfirmed: data.user.email_confirmed_at } : null,
-    session: data.session ? 'Session created' : 'No session (email confirmation required)',
-  });
+  if (error) throw new Error(error.message);
 
   if (data.user) { // Create user profile
     try {
       await createOrUpdateUserProfile(data.user.id, email, username);
-      console.log('User profile created successfully');
     } catch (profileError) {
-      console.error('❌ Error creating user profile:', profileError);
-      console.error('Profile creation failed for user:', data.user.id);
-      console.error('This may be due to RLS policies or database permissions.');
-      // Continue even if profile creation fails - user is still authenticated
-      // But log the error clearly for debugging
+      throw new Error(`Failed to create user profile: ${profileError}`);
     }
-  } else {
-    console.warn('⚠️ No user data returned from registration - cannot create profile');
   }
 
-  // Note: If email confirmation is required, session will be null
-  // User needs to confirm email before they can sign in
-  const needsEmailConfirmation = !data.session && !!data.user;
-  
-  if (needsEmailConfirmation) {
-    console.log('Email confirmation required. Confirmation email should be sent to:', email);
-  }
-
-  return {
-    accessToken: data.session?.access_token || '',
-    needsEmailConfirmation: needsEmailConfirmation,
-  };
+  return { accessToken: data.session?.access_token || '' };
 };
 
 /**
@@ -156,9 +129,6 @@ export const resendConfirmationEmail = async (email: string) => {
   return { success: true };
 };
 
-/**
- * Sign in with Google
- */
 export const signInWithGoogle = async () => {
   const supabase = createClient();
   const redirectUrl = `${window.location.origin}/auth/callback`;
@@ -183,9 +153,6 @@ export const signInWithGoogle = async () => {
   return { accessToken: '' };
 };
 
-/**
- * Sign in with GitHub
- */
 export const signInWithGithub = async () => {
   const supabase = createClient();
   const redirectUrl = `${window.location.origin}/auth/callback`;
@@ -210,9 +177,6 @@ export const signInWithGithub = async () => {
   return { accessToken: '' };
 };
 
-/**
- * Sign in with Facebook
-**/
 export const signInWithFacebook = async () => {
   const supabase = createClient();
   const redirectUrl = `${window.location.origin}/auth/callback`;
@@ -239,9 +203,6 @@ export const signInWithFacebook = async () => {
   };
 };
 
-/**
- * Logout
-**/
 export const logout = async () => {
   const supabase = createClient();
   
