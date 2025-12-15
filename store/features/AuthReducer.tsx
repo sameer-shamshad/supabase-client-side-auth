@@ -15,25 +15,26 @@ const USER_STORAGE_KEY = 'user_profile';
 
 // Helper to save user to localStorage
 const saveUserToStorage = (user: User | null) => {
-  if (user) {
+  if (user)
     localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
-  } else {
+  else
     localStorage.removeItem(USER_STORAGE_KEY);
-  }
 };
 
 // Helper to load user from localStorage
 const loadUserFromStorage = (): User | null => {
   if (typeof window === 'undefined') return null;
+
   try {
     const stored = localStorage.getItem(USER_STORAGE_KEY);
     if (stored) {
       return JSON.parse(stored) as User;
     }
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   } catch (error) {
-    console.error('Error loading user from localStorage:', error);
     localStorage.removeItem(USER_STORAGE_KEY);
   }
+
   return null;
 };
 

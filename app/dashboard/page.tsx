@@ -1,7 +1,6 @@
 "use client";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { logoutThunk, fetchProfileFromSupabase } from "@/store/features/AuthReducer";
 
@@ -11,26 +10,15 @@ export default function DashboardPage() {
   const { user, isLoading } = useAppSelector((state) => state.auth);
 
   useEffect(() => {
-    const checkAuth = async () => {
-      const supabase = createClient();
-      const {
-        data: { user: authUser },
-        error,
-      } = await supabase.auth.getUser();
-
-      if (error || !authUser) {
+    // If no user in Redux after initialization, try to fetch it
+    // initializeAuth (called in App.tsx) already checks authentication
+    if (!user && !isLoading) {
+      dispatch(fetchProfileFromSupabase()).catch(() => {
+        // If fetch fails (user not authenticated), redirect to login
         router.push("/login");
-        return;
-      }
-
-      // If no user in Redux, fetch it
-      if (!user) {
-        dispatch(fetchProfileFromSupabase());
-      }
-    };
-
-    checkAuth();
-  }, [router, dispatch, user]);
+      });
+    }
+  }, [user, isLoading, dispatch, router]);
 
   const handleLogout = async () => {
     await dispatch(logoutThunk());

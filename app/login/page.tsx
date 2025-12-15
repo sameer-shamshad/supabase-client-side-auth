@@ -1,31 +1,27 @@
 'use client';
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useMachine } from '@xstate/react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import loginMachine from '@/machines/LoginMachine';
 import SSOButtons from '@/components/SSOButtons';
-import { resendConfirmationEmail } from '@/services/auth.service';
 import { useAppDispatch } from '@/store/hooks';
 import { fetchProfileFromSupabase } from '@/store/features/AuthReducer';
 
 export default function LoginPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const dispatch = useAppDispatch();
   const [state, send] = useMachine(loginMachine);
-  const [isResendingEmail, setIsResendingEmail] = useState(false);
-  const [resendSuccess, setResendSuccess] = useState(false);
-  const [resendError, setResendError] = useState<string | null>(null);
 
-  // Fetch email from URL query parameters and pre-fill the form
+  // Auto-hide resend success message after 5 seconds
   useEffect(() => {
-    const emailFromUrl = searchParams.get('email');
-    if (emailFromUrl) { // Decode the email parameter and set it in the form
-      const decodedEmail = decodeURIComponent(emailFromUrl);
-      send({ type: 'CHANGE_FIELD', field: 'email', value: decodedEmail });
+    if (state.context.resendSuccess) {
+      const timer = setTimeout(() => {
+        send({ type: 'CLEAR_RESEND_SUCCESS' });
+      }, 5000);
+      return () => clearTimeout(timer);
     }
-  }, [searchParams, send]);
+  }, [state.context.resendSuccess, send]);
 
   // Redirect to dashboard on successful email/password login and fetch profile
   // Note: SSOButtons has its own machine instance and handles SSO redirects separately
@@ -47,40 +43,13 @@ export default function LoginPage() {
     send({ type: 'CHANGE_FIELD', field, value });
   };
 
-  const handleResendConfirmationEmail = async () => {
-    const email = state.context.email.trim();
-    if (!email) {
-      setResendError('Please enter your email address first');
-      return;
-    }
-
-    setIsResendingEmail(true);
-    setResendError(null);
-    setResendSuccess(false);
-
-    try {
-      await resendConfirmationEmail(email);
-      setResendSuccess(true);
-      setTimeout(() => setResendSuccess(false), 5000); // Hide success message after 5 seconds
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to resend confirmation email';
-      setResendError(errorMessage);
-    } finally {
-      setIsResendingEmail(false);
-    }
-  };
-
   // Check if error is about email confirmation
   const isEmailConfirmationError = state.context.error?.toLowerCase().includes('confirm your email') || 
     state.context.error?.toLowerCase().includes('email not confirmed') ||
     state.context.error?.toLowerCase().includes('email_not_confirmed');
 
 
-  const isSubmitting = state.matches('submitting') || 
-    state.matches('signingInWithGoogle') || 
-    state.matches('signingInWithGithub') || 
-    state.matches('signingInWithFacebook');
-    
+  const isSubmitting = state.matches('submitting') || state.matches('resendingEmail');
   const isSuccess = state.matches('success');
 
   return (
@@ -145,20 +114,20 @@ export default function LoginPage() {
               <div className="mt-3 flex flex-col gap-2">
                 <button
                   type="button"
-                  onClick={handleResendConfirmationEmail}
-                  disabled={isResendingEmail || isSubmitting}
+                  onClick={() => send({ type: 'RESEND_EMAIL' })}
+                  disabled={state.context.isResendingEmail || isSubmitting}
                   className="bg-primary text-secondary px-3 py-2 text-sm font-semibold rounded-md transition-colors hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {isResendingEmail ? 'Sending...' : 'Resend Confirmation Email'}
+                  {state.context.isResendingEmail ? 'Sending...' : 'Resend Confirmation Email'}
                 </button>
-                {resendSuccess && (
+                {state.context.resendSuccess && (
                   <div className="rounded-md bg-green-50 p-2 text-xs text-green-800 dark:bg-green-900/20 dark:text-green-400">
                     Confirmation email sent! Please check your inbox.
                   </div>
                 )}
-                {resendError && (
+                {state.context.resendError && (
                   <div className="rounded-md bg-red-50 p-2 text-xs text-red-800 dark:bg-red-900/20 dark:text-red-400">
-                    {resendError}
+                    {state.context.resendError}
                   </div>
                 )}
               </div>

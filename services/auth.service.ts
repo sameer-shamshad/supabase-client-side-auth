@@ -1,62 +1,23 @@
 import { createClient } from "@/lib/supabase/client";
-
-/**
- * Helper function to create user profile in users-profile table
- * Only creates if profile doesn't exist (does not update existing profiles)
-**/
-async function createOrUpdateUserProfile(userId: string, email: string, username?: string) {
-  const supabase = createClient();
-
-  // Extract username from email if not provided (for SSO users)
-  const finalUsername = username || email.split('@')[0];
-
-  // First, check if profile already exists
-  const { data: existingProfile, error: checkError } = await supabase
-    .from('users-profile')
-    .select('id')
-    .eq('id', userId)
-    .maybeSingle();
-
-  if (checkError) {
-    throw new Error(`Failed to check for existing profile: ${checkError.message}`);
-  }
-
-  // If profile already exists, return it without updating
-  if (existingProfile) return existingProfile;
-
-  // Profile doesn't exist, create it
-  const profileData = {
-    id: userId,
-    email: email,
-    username: finalUsername,
-    createdAt: new Date().toISOString(),
-  };
-
-  const { data, error } = await supabase
-    .from('users-profile')
-    .insert(profileData)
-    .select()
-    .single();
-
-  if (error) { // Provide helpful error messages for common issues
-    if (error.code === '42501') {
-      throw new Error(`RLS Policy Error: Permission denied. Check your Supabase RLS policies for the users-profile table.`);
-    } else if (error.code === '23505') { // Unique constraint violation (shouldn't happen since we checked, but just in case)
-      return existingProfile || { id: userId };
-    } else {
-      throw new Error(`Failed to create user profile: ${error.message}`);
-    }
-  }
-
-  return data;
-}
+import { createOrUpdateUserProfile } from "./user.service";
 
 export const loginWithEmailAndPassword = async (email: string, password: string) => {
+  const trimmedEmail = email.trim();
+  const trimmedPassword = password.trim();
+
+  if (!trimmedEmail) {
+    throw new Error('Email is required');
+  }
+
+  if (trimmedPassword.length <= 6) {
+    throw new Error('Password is required and must be at least 7 characters long.');
+  }
+
   const supabase = createClient();
 
   const { data, error } = await supabase.auth.signInWithPassword({
-    email: email.trim(),
-    password: password,
+    email: trimmedEmail,
+    password: trimmedPassword,
   });
 
   if(error && (
@@ -67,7 +28,7 @@ export const loginWithEmailAndPassword = async (email: string, password: string)
     throw new Error('Please confirm your email address before signing in. Check your inbox for the confirmation link.');
   }
 
-  if (data.user) await createOrUpdateUserProfile(data.user.id, data.user.email || email);
+  if (data.user) await createOrUpdateUserProfile(data.user.id, data.user.email || trimmedEmail);
 
   return { accessToken: data.session.access_token };
 };
@@ -76,30 +37,48 @@ export const loginWithEmailAndPassword = async (email: string, password: string)
  * Register with email and password
 **/
 export const registerWithEmailAndPassword = async (username: string, email: string, password: string) => {
+  // Validation
+  const trimmedUsername = username.trim();
+  const trimmedEmail = email.trim();
+  const trimmedPassword = password.trim();
+
+  if (!trimmedUsername) {
+    throw new Error('Username is required');
+  }
+
+  if (!trimmedEmail) {
+    throw new Error('Email is required');
+  }
+
+  if (!trimmedPassword) {
+    throw new Error('Password is required');
+  }
+
+  if (trimmedPassword.length <= 6) {
+    throw new Error('Password must be at least 7 characters long');
+  }
+
   const supabase = createClient();
-  const redirectUrl = `${window.location.origin}/dashboard`;
+  // Include username in redirect URL as fallback in case user_metadata is not preserved
+  const redirectUrl = `${window.location.origin}/auth/callback?username=${encodeURIComponent(trimmedUsername)}`;
 
   // Sign up the user
   const { data, error } = await supabase.auth.signUp({ 
-    email, 
-    password,
+    email: trimmedEmail, 
+    password: trimmedPassword,
     options: {
       emailRedirectTo: redirectUrl,
       data: {
-        username: username,
+        username: trimmedUsername,
       }
     }
   });
 
   if (error) throw new Error(error.message);
 
-  if (data.user) { // Create user profile
-    try {
-      await createOrUpdateUserProfile(data.user.id, email, username);
-    } catch (profileError) {
-      throw new Error(`Failed to create user profile: ${profileError}`);
-    }
-  }
+  // Profile creation is handled in the callback route after email confirmation
+  // If email confirmation is disabled (auto-confirm), the callback route will still handle it
+  // when the user is redirected after signup
 
   return { accessToken: data.session?.access_token || '' };
 };
