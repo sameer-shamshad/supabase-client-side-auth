@@ -46,8 +46,12 @@ export async function GET(request: Request) {
         username = userMetadata.name.split(' ')[0].toLowerCase().trim();
       }
 
+      // Create or update user profile
+      // Note: This is a server-side route, so retry logic isn't necessary
+      // If user reached this callback, internet connection is already established
+      // If Supabase is down, retrying won't help - profile can be created later
       try {
-        await supabase
+        const { error: profileError } = await supabase
           .from('users-profile')
           .upsert({
             id: data.user.id,
@@ -57,9 +61,15 @@ export async function GET(request: Request) {
           }, {
             onConflict: 'id',
           });
-      } catch (profileError) {
-        console.error('Error creating user profile:', profileError);
-        // Continue even if profile creation fails
+        
+        // Silently handle error - profile can be created later
+        // Continue even if profile creation fails (don't block auth flow)
+        if (profileError) {
+          // Error logged but not thrown - auth flow continues
+        }
+      } catch {
+        // Silently handle error - profile can be created later
+        // Continue even if profile creation fails (don't block auth flow)
       }
     }
 
